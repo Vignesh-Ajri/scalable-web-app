@@ -1,16 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { authAPI, taskAPI } from '../services/api';
 import Navbar from '../components/Navbar';
 
 const Dashboard = () => {
-  const { user, updateUser } = useAuth();
+  const { updateUser } = useAuth();
   const [profile, setProfile] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
+
   const [filters, setFilters] = useState({
     search: '',
     status: '',
@@ -29,15 +30,7 @@ const Dashboard = () => {
     email: ''
   });
 
-  useEffect(() => {
-    fetchProfile();
-    fetchTasks();
-  }, []);
-
-  useEffect(() => {
-    fetchTasks();
-  }, [filters]);
-
+  // Fetch Profile
   const fetchProfile = async () => {
     try {
       const response = await authAPI.getProfile();
@@ -51,7 +44,8 @@ const Dashboard = () => {
     }
   };
 
-  const fetchTasks = async () => {
+  // Fetch Tasks (memoized correctly)
+  const fetchTasks = useCallback(async () => {
     try {
       setLoading(true);
       const response = await taskAPI.getTasks(filters);
@@ -61,7 +55,16 @@ const Dashboard = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters]);
+
+  // Effects
+  useEffect(() => {
+    fetchProfile();
+  }, []);
+
+  useEffect(() => {
+    fetchTasks();
+  }, [fetchTasks]);
 
   const handleCreateTask = async (e) => {
     e.preventDefault();
@@ -71,8 +74,14 @@ const Dashboard = () => {
       } else {
         await taskAPI.createTask(taskForm);
       }
+
       setShowTaskModal(false);
-      setTaskForm({ title: '', description: '', status: 'pending', priority: 'medium' });
+      setTaskForm({
+        title: '',
+        description: '',
+        status: 'pending',
+        priority: 'medium'
+      });
       setEditingTask(null);
       fetchTasks();
     } catch (error) {
